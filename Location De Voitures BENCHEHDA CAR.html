@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Location de voitures</title>
+  <style>
+    :root{
+      --accent:#ffcc00;
+      --muted:#b8c1c9;
+      --card-bg:#0f1720;
+      --page-bg:linear-gradient(180deg,#050607,#0b0d10);
+      --radius:12px;
+      --shadow: 0 8px 30px rgba(2,6,23,0.7);
+      --glass: rgba(255,255,255,0.03);
+      --text:#e6eef8;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+    html,body{height:100%;}
+    body{
+      margin:0;
+      background:var(--page-bg);
+      padding:24px;
+      direction:ltr;
+      color:var(--text);
+      -webkit-font-smoothing:antialiased;
+    }
+
+    .top{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:120px;height:60px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#071018;font-weight:800;font-size:18px;box-shadow:var(--shadow)}
+    .title{font-size:18px;font-weight:700}
+    .subtitle{color:var(--muted);font-size:13px}
+
+    .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .search{display:flex;gap:8px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:10px;border-radius:12px;box-shadow:var(--shadow);min-width:260px;border:1px solid rgba(255,255,255,0.03)}
+    .search input{border:0;outline:none;font-size:14px;background:transparent;color:var(--text)}
+    .btn{background:var(--accent);color:#071018;padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
+    .btn.ghost{background:transparent;color:var(--accent);box-shadow:none;border:1px solid rgba(255,255,255,0.06)}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:18px}
+    .card{background:var(--card-bg);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;border:1px solid rgba(255,255,255,0.03)}
+    .thumb{height:160px;background:#111;background-size:cover;background-position:center}
+    .card-body{padding:12px;display:flex;flex-direction:column;gap:8px}
+    .row{display:flex;justify-content:space-between;align-items:center}
+    .price{font-weight:800;color:var(--accent)}
+    .meta{color:var(--muted);font-size:13px}
+    .badge{padding:6px 8px;border-radius:8px;font-weight:700;font-size:12px}
+    .available{background:rgba(34,197,94,0.12);color:#a7f3d0}
+    .booked{background:rgba(239,68,68,0.12);color:#fecaca}
+
+    .rent-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+
+    .footer{margin-top:18px;color:var(--muted);font-size:13px}
+
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:60}
+    .modal{background:var(--card-bg);padding:18px;border-radius:12px;width:320px;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,0.04)}
+    .modal h3{margin:0 0 8px}
+    .modal .row{margin-bottom:8px}
+    .modal input[type=number]{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text)}
+    .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+
+    @media (max-width:640px){
+      .top{flex-direction:column;align-items:stretch}
+      .controls{justify-content:space-between}
+      .modal{width:92%;}
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand">
+      <div class="logo">BENCHEHBA CAR</div>
+      <div>
+        <div class="title">Plateforme de location de voitures</div>
+        <div class="subtitle">Louez facilement votre voiture</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 21l-4.35-4.35" stroke="#cfe6ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="11" r="6" stroke="#cfe6ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <input id="q" placeholder="Rechercher par marque, modèle ou ville" />
+      </div>
+
+      <div>
+        <button class="btn" id="clear">Réinitialiser</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" id="list"></div>
+
+  <div class="footer">La plateforme est prête pour la location : affichage du prix par jour et réservation via WhatsApp. Clique "Réserver" pour ouvrir la fenêtre.</div>
+
+  <!-- Modal -->
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3 id="modalTitle">Réserver</h3>
+      <div class="row">
+        <div class="meta">Prix par jour: <strong id="modalPerDay">0</strong> MAD</div>
+      </div>
+      <label for="modalDays">Nombre de jours</label>
+      <input id="modalDays" type="number" min="1" value="1">
+      <div class="row">
+        <div class="meta">Total: <strong id="modalTotal">0</strong> MAD</div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="modalClose">Annuler</button>
+        <button class="btn" id="modalConfirm">Envoyer WhatsApp</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const q = document.getElementById('q');
+    const price = null; // removed price filter
+    const list = document.getElementById('list');
+    const clearBtn = document.getElementById('clear');
+    const rentalDuration = null; // removed duration selector
+    const phoneNumber = '+212642035935'; // ⚡ Mets ici ton numéro WhatsApp Business (sans +)
+
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalPerDay = document.getElementById('modalPerDay');
+    const modalDays = document.getElementById('modalDays');
+    const modalTotal = document.getElementById('modalTotal');
+    const modalClose = document.getElementById('modalClose');
+    const modalConfirm = document.getElementById('modalConfirm');
+
+    let currentCar = null;
+
+    function formatMoney(n){ return n.toLocaleString('fr-FR') + ' MAD'; }
+
+    function createCard(data){
+      return `<article class="card" data-price="${data.price}" data-price-per-day="${data.perDay}" data-available="${data.available}" data-title="${data.title}" data-keywords="${data.keywords}">
+        <div class="thumb" style="background-image:url('${data.img}')"></div>
+        <div class="card-body">
+          <div class="row">
+            <div>
+              <div style="font-weight:700">${data.title}</div>
+              <div class="meta">${data.meta}</div>
+            </div>
+            <div>
+              <div class="price">${data.perDay} MAD/jour</div>
+              <div class="meta">Tarif journalier</div>
+            </div>
+          </div>
+          <div class="meta">${data.fuel}</div>
+          <div class="rent-row">
+            <div class="badge ${data.available? 'available':'booked'}">${data.available? 'Disponible':'Réservée'}</div>
+            <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+              <div class="meta">Total (pré): <span class="total">${data.perDay} MAD</span></div>
+              <button class="btn reserve" ${data.available? '':'disabled'}>Réserver</button>
+            </div>
+          </div>
+        </div>
+      </article>`
+    }
+
+    const cars = [
+      {title:"Volkswagen TOUAREG 2025",fuel:"Diesel — Automatique",perDay:1300,available:true,keywords:"Volkswagen TOUAREG 2025",img:"https://car-images.bauersecure.com/wp-images/12803/480x270/61-vw-touareg-front-cornering.jpg"},
+      {title:"Renault Clio 5",fuel:"Essence — Automatique",perDay:350,available:true,keywords:"Renault Clio 5",img:" https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSUnsUYusXrQJj8nynSo0Y9NRKoIUfpRvLi1A&s"},
+      {title:"Fiat 500 cabriolet",fuel:"Diesel — Automatique",perDay:400,available:true,keywords:"Fiat 500 cabriolet",img:"https://i0.shbdn.com/photos/53/78/69/x5_1236537869o23.jpg"},
+      {title:"DACIA DUSTER",fuel:"Diesel — Automatique",perDay:400,available:true,keywords:"DACIA DUSTER",img:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRqcZMDnY62rolChLRIFo-xtTUZTiYUtZagGw&s"},
+      {title:"Volkswagen GOLF 8,5R",fuel:"Diesel — Automatique",perDay:800,available:true,keywords:"Volkswagen GOLF 8,5R",img:"https://cloud.autoblog.nl/2024/12/Volkswagen-Golf-85R-06.jpg"},
+      {title:"HYUNDAI TUCSON FULL OPTIONS",fuel:"Diesel — Automatique",perDay:550,available:true,keywords:"HYUNDAI TUCSON FULL OPTIONS",img:"https://www.moteur.ma/media/photos/neufs/resized/moteur.ma-hyundai-tucson-985813_.jpeg"},
+      {title:"Range rover sport 2025",fuel:"Diesel — Automatique",perDay:2500,available:true,keywords:"Range rover sport 2025",img:"https://media.cdn-jaguarlandrover.com/api/v2/images/105958/w/1600/h/900.jpg"},
+      {title:"Range rover evoqe 2025",fuel:"Diesel — Automatique",perDay:1000,available:true,keywords:"Range rover evoqe 2025",img:"https://hips.hearstapps.com/hmg-prod/images/2024-land-rover-range-rover-evoque-phev-102-65380162bded9.jpg"},
+      {title:"Reneult megane",fuel:"Diesel — Automatique",perDay:450,available:true,keywords:"Reneult megane",img:"https://cdn.group.renault.com/ren/master/renault-new-cars/product-plans/megane-sedan/megane-lff-ph2/2560x1440-responsive-format/renault-megane-sedan-ph2-009.jpg.ximg.xsmall.jpg/c4806de6bb.jpg"},
+      {title:"Fiat scodo 2025",fuel:"Diesel — Automatique",perDay:1200,available:true,keywords:"Fiat scodo 2025",img:"data:image/jpeg;base64,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"},
+    ];
+
+    function renderCars(){
+      list.innerHTML = cars.map(createCard).join('');
+      updateTotals();
+    }
+
+    function updateTotals(){
+      // defaults to 1 day because duration removed from navbar
+      const days = 1;
+      document.querySelectorAll('.card').forEach(card => {
+        const perDay = Number(card.dataset.pricePerDay || 0);
+        const total = perDay * days;
+        const totalEl = card.querySelector('.total');
+        if(totalEl) totalEl.innerText = formatMoney(total);
+      });
+    }
+
+    function applyFilter(){
+      const term = q.value.trim().toLowerCase();
+      const pr = 'any';
+      const cards = Array.from(list.querySelectorAll('.card'));
+      cards.forEach(card => {
+        const keywords = card.dataset.keywords || '';
+        const perDay = Number(card.dataset.pricePerDay || 0);
+        let ok = true;
+        if(term){ ok = keywords.includes(term) || card.innerText.toLowerCase().includes(term); }
+        card.style.display = ok ? 'flex' : 'none';
+      });
+      updateTotals();
+    }
+
+    q.addEventListener('input', applyFilter);
+    clearBtn.addEventListener('click', ()=>{q.value='';applyFilter();});
+
+    // open modal when clicking Réserver
+    document.addEventListener('click', e=>{
+      if(e.target.classList.contains('reserve') && !e.target.disabled){
+        const card = e.target.closest('.card');
+        currentCar = {
+          title: card.dataset.title,
+          perDay: Number(card.dataset.pricePerDay)
+        };
+        // modal opens with days = 1 by default
+        modalTitle.innerText = `Réserver — ${currentCar.title}`;
+        modalPerDay.innerText = currentCar.perDay;
+        modalDays.value = 1;
+        modalTotal.innerText = formatMoney(currentCar.perDay * Number(modalDays.value));
+        modalBackdrop.style.display = 'flex';
+        modalDays.focus();
+      }
+
+      // confirm in modal: send to WhatsApp
+      if(e.target.id === 'modalConfirm'){
+        const days = Number(modalDays.value) || 1;
+        const total = currentCar.perDay * days;
+        const msg = encodeURIComponent(`Je veux réserver ${currentCar.title} pour ${days} jour(s). Total: ${formatMoney(total)}`);
+        const url = `https://wa.me/${phoneNumber}?text=${msg}`;
+        window.open(url,'_blank');
+        modalBackdrop.style.display = 'none';
+      }
+
+      if(e.target.id === 'modalClose'){
+        modalBackdrop.style.display = 'none';
+      }
+
+      // close modal when clicking backdrop
+      if(e.target === modalBackdrop){
+        modalBackdrop.style.display = 'none';
+      }
+    });
+
+    // update modal total live
+    modalDays.addEventListener('input', ()=>{
+      const days = Number(modalDays.value) || 1;
+      modalTotal.innerText = formatMoney(currentCar?.perDay * days || 0);
+    });
+
+    renderCars();
+  </script>
+</body>
+</html>
+<footer class="site-footer simple-footer" dir="rtl" aria-label="Footer">
+  <div class="container">
+    <p>2025 @Copyright - All Rights Reserved BENCHEHBA CAR</p>
+  </div>
+</footer>
